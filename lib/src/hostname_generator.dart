@@ -14,11 +14,20 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'dart:math';
 
-import 'src/app.dart';
+const kOsName = "jappeos";
 
-Future<void> main() async {
-  await WindowHeaderBar.ensureInitialized();
-  runApp(const App());
+String generateHostname() {
+  final adjectives = ['swift', 'silent', 'rapid', 'lunar', 'crimson', 'cobalt', 'frosty', 'amber'];
+  final nouns = ['falcon', 'comet', 'tiger', 'nebula', 'forge', 'wolf', 'rocket', 'cipher'];
+
+  final rand = Random();
+  final adjective = adjectives[rand.nextInt(adjectives.length)];
+  final noun = nouns[rand.nextInt(nouns.length)];
+  final number = rand.nextInt(1000);
+
+  final sanitizedOs = kOsName.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  return '$sanitizedOs-$adjective-$noun-$number';
 }

@@ -16,9 +16,9 @@
 
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'src/app.dart';
-
-Future<void> main() async {
-  await WindowHeaderBar.ensureInitialized();
-  runApp(const App());
+abstract class InstallerPage {
+  String title;
+  String? nextButtonText;
+  List<Widget> widget(BuildContext context, int index);
+  InstallerPage(this.title, [this.nextButtonText]);
 }
