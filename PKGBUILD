@@ -1,14 +1,14 @@
 pkgname=jappeos_installer
 pkgver=0.0.14
 _tag=dev-v0.0.14
-pkgrel=1
+pkgrel=2
 pkgdesc="Installer app for JappeOS."
 arch=('x86_64')
-url="https://github.com/JappeOS/jappeos_installer"
+url="https://github.com/JappeOS/$pkgname"
 license=('GPL-3.0')
 depends=('glibc' 'gtk3')
 makedepends=('git' 'clang' 'cmake' 'ninja')
-source=("$pkgname-$pkgver.tar.gz::https://github.com/JappeOS/jappeos_installer/archive/refs/tags/$_tag.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$_tag.tar.gz")
 sha256sums=('SKIP')
 
 build() {
