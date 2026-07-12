@@ -22,6 +22,8 @@
 
 The installer app for JappeOS, built with Flutter.
 
+![Screenshot](.github/assets/installer_ui1.png)
+
 ## Features
 
 * Locales (language, timezone, keyboard layout) selection
