@@ -13,7 +13,7 @@ include(FetchContent)
 FetchContent_Declare(
         jappeos_daemon_core
         GIT_REPOSITORY https://github.com/JappeOS/jappeos_daemon_core.git
-        GIT_TAG main-v1.1.3-1
+        GIT_TAG main-v1.1.4-1
 )
 FetchContent_MakeAvailable(jappeos_daemon_core)
 
