@@ -49,7 +49,7 @@ namespace JappeStudios::JappeOS::Installerd
         _iface(_object.CreateInterface(DaemonCore::Daemon::GetBaseInterface())),
         _proxyLocaleService(
             _conn,
-            "org.jappeos.Core.LocaleService",
+            "org.jappeos.Core",
             ObjectPath("/org/jappeos/Core/LocaleService"),
             InterfaceName("org.jappeos.Core.LocaleService")
         ),
