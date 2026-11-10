@@ -1,0 +1,90 @@
+/*
+ * jappeos_installerd, System installation backend for JappeOS.
+ * Copyright (C) 2026  The JappeOS team.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "configure_system_step.h"
+
+#include <fstream>
+
+#include "system/init_boot_file.h"
+#include "../installer_def.h"
+#include "utils/command_runner.h"
+#include "utils/dbus_peer.h"
+
+using JappeStudios::JappeOS::DaemonCore::Utils::CommandRunner;
+using JappeStudios::JappeOS::DaemonCore::System::InitBootFile;
+
+namespace JappeStudios::JappeOS::Installerd::Steps
+{
+
+    // TODO: Handle installProprietary and installRecommendedDrivers
+    void ConfigureSystemStep::Execute(InstallContext& context)
+    {
+        if (context.targetRoot.empty())
+            throw std::runtime_error("Cannot configure system with empty target root path");
+
+        // TODO: Maybe have some fs-overlay thing so that installed system has different packages/files from live system.
+
+        const std::filesystem::path targetRoot(context.targetRoot);
+        const std::filesystem::path initFilePath =
+            targetRoot / std::filesystem::path(STORAGE_SYSTEM_FILE_INIT_BOOT_PATH).relative_path();
+
+        auto writer = InitBootFile::Writer(initFilePath);
+        writer.WriteLocale(context.data.locale);
+        writer.WriteTimezone(context.data.timezone);
+        writer.WriteKeyboardLayout(std::get<0>(context.data.keyboardLayout));
+        writer.WriteKeyboardLayoutVariant(std::get<1>(context.data.keyboardLayout));
+        writer.WriteHostname(context.data.hostname);
+        writer.WriteUsername(context.data.username);
+        writer.WritePassword(context.data.password);
+        writer.Close();
+
+        const std::filesystem::path packagesToRemovePath =
+            targetRoot / std::filesystem::path(STORAGE_SYSTEM_FILE_LIVE_PACKAGES_PATH).relative_path();
+        std::ifstream packagesReader(packagesToRemovePath);
+        if (!packagesReader)
+            throw std::runtime_error("Failed to read packages");
+
+        std::vector<std::string> packages;
+        std::string line;
+        while (std::getline(packagesReader, line))
+        {
+            if (line.empty() || line[0] == '#')
+                continue;
+            packages.push_back(line);
+        }
+
+        if (!packages.empty())
+        {
+            std::vector<std::string> command = {
+                "arch-chroot",
+                context.targetRoot,
+                "pacman",
+                "-Rns",
+                "--noconfirm"
+            };
+
+            for (const auto& package : packages)
+                command.push_back(package);
+
+            CommandRunner::RunOrThrow(command);
+        }
+
+        std::filesystem::remove(packagesToRemovePath);
+    }
+
+}

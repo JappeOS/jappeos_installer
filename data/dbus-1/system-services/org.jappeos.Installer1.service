@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.jappeos.Installer1
+Exec=/usr/lib/jappeos_installerd/jappeos_installerd
+SystemdService=jappeos-installerd.service
+User=root

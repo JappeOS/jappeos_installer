@@ -1,0 +1,19 @@
+[Unit]
+Description=Core System Installation Daemon
+BindsTo=dbus.service jappeos-core.service
+After=dbus.service systemd-logind.service jappeos-core.service
+Requires=dbus.service jappeos-core.service
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=dbus
+BusName=org.jappeos.Installer1
+ExecStart=/usr/lib/jappeos_installerd/jappeos_installerd
+Restart=on-failure
+RestartSec=1s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=basic.target
