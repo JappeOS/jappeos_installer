@@ -1,9 +1,9 @@
 # Maintainer: Jappe02 <Jappe00001@gmail.com>
 pkgbase=jappeos_installer
 pkgname=('jappeos_installer' 'jappeos_installerd')
-pkgver=0.0.14
-_tag=dev-v0.0.14
-pkgrel=2
+pkgver=1.0.0
+_tag=dev-v1.0.0
+pkgrel=1
 arch=('x86_64')
 url="https://github.com/JappeOS/$pkgbase"
 license=('AGPL-3.0-or-later')
