@@ -14,11 +14,23 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:async';
+
 import 'package:jappeos_services/jappeos_services.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 class InstallProvider extends ChangeNotifier {
   final InstallerService service;
+
+  bool _disposed = false;
+  bool _loading = false;
+  Future<void>? _loadTask;
+  bool _hasLoaded = false;
+  bool _retrying = false;
+  int _request = 0;
+  int _serviceGeneration = -1;
+  Object? _loadError;
+  final Duration loadTimeout;
 
   InstallPlan _installPlan = InstallPlan(
     hostname: "",
@@ -74,6 +86,15 @@ class InstallProvider extends ChangeNotifier {
   InstallDiskMode _selectedDiskInstallMode = InstallDiskMode.erase;
   int _latestPlanId = 0;
 
+  bool get hasLoaded => _hasLoaded;
+  bool get isReady =>
+      service.status == ServiceStatus.ready &&
+      _localeInfo != null &&
+      _storageInfo != null &&
+      !_loading &&
+      _loadError == null;
+  Object? get loadingError => _loadError ?? service.initializationError;
+
   LocaleInfo? get localeInfo => _localeInfo;
   StorageInfo? get storageInfo => _storageInfo;
   List<String> get planWarnings => _planWarnings;
@@ -86,24 +107,38 @@ class InstallProvider extends ChangeNotifier {
     }
   }
 
-  InstallProvider(this.service) {
+  InstallProvider(
+    this.service, {
+    this.loadTimeout = const Duration(seconds: 30),
+  }) {
     service.addListener(_onChanged);
-    _loadInitial();
+    _onChanged();
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    _request++;
     service.removeListener(_onChanged);
     super.dispose();
   }
 
   Future<void> createPlan() async {
+    if (!isReady) throw StateError("Installer is not ready");
+
+    final generation = service.generation;
     _planWarnings.clear();
+
     try {
       if (_latestPlanId != 0) {
         await service.cancelInstallPlan(_latestPlanId);
       }
+
       final res = await service.createInstallPlan(_installPlan);
+      if (_disposed || generation != service.generation) {
+        throw StateError("Installer changed while preparing the plan");
+      }
+
       _latestPlanId = res.planId;
       _planWarnings = res.warnings;
     } finally {
@@ -112,19 +147,93 @@ class InstallProvider extends ChangeNotifier {
   }
 
   Future<void> beginInstallation() async {
-    if (_latestPlanId == 0) {
+    if (!isReady || _latestPlanId == 0) {
       throw Exception("No install plan created yet");
     }
     await service.beginInstallation(_latestPlanId);
   }
 
-  Future<void> _loadInitial() async {
-    _localeInfo = await service.getLocaleInfo();
-    _storageInfo = await service.getStorageInfo();
+  Future<void> retryLoading() async {
+    if (_disposed || _retrying) return;
+    _retrying = true;
+    _loadError = null;
+
+    try {
+      if (service.status != ServiceStatus.ready) {
+        await service.retryInitialization();
+      }
+      if (!_disposed) await _loadInitial();
+    } catch (error) {
+      if (!_disposed) _loadError = error;
+    } finally {
+      _retrying = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> _loadInitial() {
+    if (_loading) return _loadTask!;
+    return _loadTask = _readInitial();
+  }
+
+  Future<void> _readInitial() async {
+    if (_disposed || _loading || service.status != ServiceStatus.ready) return;
+
+    final request = ++_request;
+    _loading = true;
+    _loadError = null;
     notifyListeners();
+
+    try {
+      // Publish one complete snapshot, never locale data from one daemon and
+      // storage data from its replacement. These are read-only requests.
+      final data = await (() async {
+        final locale = await service.getLocaleInfo();
+        final storage = await service.getStorageInfo();
+        return (locale, storage);
+      })().timeout(loadTimeout);
+
+      if (_disposed || request != _request) return;
+
+      _localeInfo = data.$1;
+      _storageInfo = data.$2;
+      _hasLoaded = true;
+    } catch (error) {
+      if (!_disposed && request == _request) _loadError = error;
+    } finally {
+      if (!_disposed && request == _request) {
+        _loading = false;
+        notifyListeners();
+      }
+    }
   }
 
   void _onChanged() {
+    if (_disposed) return;
+
+    if (_serviceGeneration != service.generation) {
+      _serviceGeneration = service.generation;
+      _request++;
+      _loading = false;
+      _loadError = null;
+      _localeInfo = null;
+      _storageInfo = null;
+      _latestPlanId = 0;
+      _planWarnings.clear();
+    }
+
+    if (service.status == ServiceStatus.ready &&
+        _localeInfo == null &&
+        !_loading &&
+        _loadError == null) {
+      unawaited(_loadInitial());
+    }
+
     notifyListeners();
+  }
+
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
   }
 }

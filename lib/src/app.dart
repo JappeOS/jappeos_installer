@@ -34,6 +34,7 @@ import 'pages/updates_and_software_page.dart';
 import 'pages/user_setup_page.dart';
 import 'pages/welcome_page.dart';
 import 'provider/install_provider.dart';
+import 'widgets/installer_readiness_gate.dart';
 import 'provider/page_provider.dart';
 
 const kIsWindowedDesktopApp = true;
@@ -196,7 +197,9 @@ class _RootWrapper extends StatelessWidget {
           //backgroundColor: Theme.of(context).colorScheme.sidebar,
         ),
       ] : [],
-      child: kIsWindowedDesktopApp ? const _AppMain() : Stack(
+      child: kIsWindowedDesktopApp
+          ? const InstallerReadinessGate(child: _AppMain())
+          : Stack(
         children: [
           Positioned.fill(
             top: pad,
@@ -223,7 +226,7 @@ class _RootWrapper extends StatelessWidget {
                       ),
                     ],
                     borderRadius: Theme.of(context).borderRadiusXxl,
-                    child: const _AppMain(),
+                    child: const InstallerReadinessGate(child: _AppMain()),
                   ),
                 ),
               ),
