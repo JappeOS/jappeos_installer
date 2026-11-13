@@ -14,7 +14,10 @@
 //  You should have received a copy of the GNU Affero General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:jappeos_services/jappeos_services.dart';
 import 'package:provider/provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -48,6 +51,8 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
   Future? _beginInstallFuture;
   bool _canContinue = false;
   bool _rebootSystem = true;
+  bool _canReboot = false;
+  bool _interactiveReboot = false;
 
   @override
   void initState() {
@@ -63,16 +68,41 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       nav.setAllowAnyNavigation(false);
     });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final powerManager = context.read<PowerManagerService>();
+      try {
+        final res = await powerManager.canReboot();
+        _canReboot = res == PowerActionCapability.allowed ||
+                     res == PowerActionCapability.authenticationRequired;
+        _interactiveReboot = res == PowerActionCapability.authenticationRequired;
+        debugPrint("Reboot capability: $res, canReboot: $_canReboot, interactive: $_interactiveReboot");
+      } catch (e) {
+        debugPrint("Failed to check reboot capability: $e");
+        _canReboot = false;
+      }
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   Future<bool> _handleSubmit() async {
     bool cond = _canContinue;
-    if (cond && !kDebugMode && _rebootSystem) {
+    if (!cond) {
+      return false;
+    }
+    if (!kDebugMode && _rebootSystem && _canReboot) {
       final powerManager = context.read<PowerManagerService>();
       try {
-        await powerManager.reboot();
+        await powerManager.reboot(interactive: _interactiveReboot);
       } catch (e) {
-        // Ignore for now
+        debugPrint("Failed to reboot: $e");
+      }
+    } else {
+      try {
+        await ServicesBinding.instance.exitApplication(AppExitType.cancelable);
+      } catch (e) {
+        debugPrint("Failed to exit application: $e");
       }
     }
     return cond;
@@ -163,15 +193,16 @@ class _InstallProgressPageWidgetState extends State<_InstallProgressPageWidget> 
       const Text("Please remove the installation media (Disk or USB-drive) and restart to the newly installed OS.").textCenter(),
       const Text("If you choose to not restart now, you will remain in the live-environment and no files or changes will be saved on this computer.").muted().italic().textCenter(),
       const Gap(0),
-      Checkbox(
-        state: _rebootSystem ? CheckboxState.checked : CheckboxState.unchecked,
-        onChanged: (value) {
-          setState(() {
-            _rebootSystem = value == CheckboxState.checked;
-          });
-        },
-        trailing: const Text('I have removed the installation media. Restart the PC now.'),
-      ),
+      if (_canReboot)
+        Checkbox(
+          state: _rebootSystem ? CheckboxState.checked : CheckboxState.unchecked,
+          onChanged: (value) {
+            setState(() {
+              _rebootSystem = value == CheckboxState.checked;
+            });
+          },
+          trailing: const Text('I have removed the installation media. Restart the PC now.'),
+        ),
     ];
   }
 
