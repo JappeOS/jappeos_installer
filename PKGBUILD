@@ -1,8 +1,8 @@
 # Maintainer: Jappe02 <Jappe00001@gmail.com>
 pkgbase=jappeos_installer
 pkgname=('jappeos_installer' 'jappeos_installerd')
-pkgver=1.0.5
-_tag=dev-v1.0.5
+pkgver=1.0.6
+_tag=dev-v1.0.6
 pkgrel=1
 arch=('x86_64')
 url="https://github.com/JappeOS/$pkgbase"
